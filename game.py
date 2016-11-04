@@ -7,6 +7,16 @@ if DRAW:
 from numpy import *
 import numpy.random as nrand
 import random
+import os
+
+#define
+COVERED = -1
+FLAG = 9
+BOMB = 10
+CORRECT = 11
+INCORRECT = 12
+BOOM = 13
+#end define
 
 class Game(object):
     def __init__(self, width, height, mines, draw = False, tile_size = 32):
@@ -16,39 +26,112 @@ class Game(object):
         self.wins = 0
         self.losses = 0
         self.draw = draw
+        self.tileSize = tile_size
 
         if self.draw:
             pygame.init()
             self.surface = pygame.Surface((width * tile_size, height * tile_size))
             self.clock = pygame.time.Clock()
+            size = (tile_size, tile_size)
+            self.images = {}
+            self.images[COVERED] = pygame.transform.scale(self.loadImg("covered"), size)
+            for i in range(INCORRECT + 1):
+                self.images[i] = pygame.transform.scale(self.loadImg(str(i)), size)
 
         self.reset()
+
+    def loadImg(self, name):
+        return pygame.image.load(os.path.join("images", name + ".png"))
+
+    def drawTile(self, pos, val):
+        if self.draw:
+            y, x = pos
+            p = (y * self.tileSize, x * self.tileSize)
+            self.surface.blit(self.images[val], p)
 
     def reset(self):
         w = self.width
         h = self.height
-        self.display_board = [-1 for i in range(w * h)]
+        self.display_board = [COVERED for i in range(w * h)]
 
         self.board = [[0 for i in range(w)] for j in range(h)]
 
         mines = 0
         while (mines != self.mines):
-            x = random.randint(0, w)
-            y = random.randint(0, h)
-            if (x != 0 or y != 0) and (self.board[y][x] != 10):
-                self.board[y][x] = 10
+            x = random.randint(0, w - 1)
+            y = random.randint(0, h - 1)
+            if (x != 0 or y != 0) and (self.board[y][x] != BOMB):
+                self.board[y][x] = BOMB
                 mines += 1
 
         for i in range(h):
             for j in range(w):
-                if (self.board[i][j] != 10):
+                self.drawTile((i, j), -1)
+                if (self.board[i][j] != BOMB):
                     for i_inc in range(-1, 2):
                         for j_inc in range(-1, 2):
                             try:
-                                if self.board[i + i_inc][j + j_inc] != 10:
+                                if self.board[i + i_inc][j + j_inc] != BOMB:
                                     self.board[i + i_inc][j + j_inc] += 1
                             except:
                                 pass
 
         self.correct_flags = 0
         self.incorrect_flags = 0
+        self.opened = 0
+        self.finished = False
+
+    def open(self, pos, recursion = false):
+        y, x = pos
+        if self.board[y][x] == BOMB and not recursion:
+            self.display_board[y * self.width + x] = BOOM
+            self.drawTile(pos, self.display_board[y * self.width + x])
+            for h in range(self.height):
+                for w in range(self.width):
+                    if self.display_board[h * self.width + w] == COVERED:
+                        self.display_board[h * self.width + w] = self.board[h][w]
+                    elif self.display_board[h * self.width + w] == FLAG and self.board[h][w] == BOMB:
+                        self.display_board[h * self.width + w] = CORRECT
+                    else:
+                        self.display_board[h * self.width + w] = INCORRECT
+
+                    self.drawTile((h, w), self.display_board[h * self.width + w])
+
+            self.finished = True
+            self.losses += 1
+
+        elif self.board[y][x] == 0:
+            self.display_board[y * self.width + x] = 0
+            self.opened += 1
+            self.drawTile(pos, self.display_board[y * self.width + x])
+
+            for i_inc in range(-1, 2):
+                for j_inc in range(-1, 2):
+                    try:
+                        open((y + i_inc, x + j_inc), True)
+                    except:
+                        pass
+
+        elif self.board[y][x] != BOMB:
+            self.display_board[y * self.width + x] = self.board[y][x]
+            self.drawTile(pos, self.display_board[y * self.width + x])
+
+        else:
+            pass # we encountered bomb in the reccursion, don't open the tile0
+
+    def mark(self, pos):
+        y, x = pos
+        if self.display_board[y * self.width + x] == COVERED:
+            self.display_board[y * self.width + x] = FLAG
+            if self.board[y][x] == BOMB:
+                self.correct_flags += 1
+            else:
+                self.incorrect_flags += 1
+        elif self.display_board[y * self.width + x] == FLAG:
+            self.display_board[y * self.width + x] = COVERED
+            if self.board[y][x] == BOMB:
+                self.correct_flags -= 1
+            else:
+                self.incorrect_flags -= 1
+
+        self.drawTile(pos, self.display_board[y * self.width + x])
