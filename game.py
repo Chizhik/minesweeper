@@ -27,6 +27,7 @@ class Game(object):
         self.losses = 0
         self.draw = draw
         self.tileSize = tile_size
+        self.wh = self.height * self.width
 
         if self.draw:
             pygame.init()
@@ -52,7 +53,7 @@ class Game(object):
     def reset(self):
         w = self.width
         h = self.height
-        self.display_board = [COVERED for i in range(w * h)]
+        self.display_board = [COVERED for i in range(self.wh)]
 
         self.board = [[0 for i in range(w)] for j in range(h)]
 
@@ -80,6 +81,12 @@ class Game(object):
         self.incorrect_flags = 0
         self.opened = 0
         self.finished = False
+        self.result = None
+
+        caption = "W: " + str(self.wins) + " - L: " + str(self.losses)
+        if self.draw:
+            pygame.display.set_caption(caption)
+        print caption
 
     def open(self, pos, recursion = false):
         y, x = pos
@@ -99,6 +106,7 @@ class Game(object):
 
             self.finished = True
             self.losses += 1
+            self.result = False
 
         elif self.board[y][x] == 0:
             self.display_board[y * self.width + x] = 0
@@ -119,6 +127,8 @@ class Game(object):
         else:
             pass # we encountered bomb in the reccursion, don't open the tile0
 
+        checkWin()
+
     def mark(self, pos):
         y, x = pos
         if self.display_board[y * self.width + x] == COVERED:
@@ -135,3 +145,15 @@ class Game(object):
                 self.incorrect_flags -= 1
 
         self.drawTile(pos, self.display_board[y * self.width + x])
+
+    def checkWin(self):
+        if not self.finished:
+            if (self.opened == self.wh - self.mines):
+                self.finished = True
+                self.result = True
+                self.wins += 1
+                return True
+        return self.result
+
+    def isDone(self):
+        return not self.finished
