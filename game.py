@@ -101,7 +101,7 @@ class Game(object):
         if self.display_board[y,x] != -1:
             reward = -1.0
         
-        elif self.display_board[y,x] == BOMB:
+        elif self.board[y,x] == BOMB:
             self.display_board[y,x] = BOOM
             for h in range(self.height):
                 for w in range(self.width):
@@ -153,4 +153,4 @@ class Game(object):
         return self.result
 
     def isDone(self):
-        return not self.finished
+        return self.finished
