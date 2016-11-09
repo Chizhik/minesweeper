@@ -1,8 +1,8 @@
-DRAW = True
+# DRAW = True
 
-if DRAW:
-    import pygame
-    from pygame.locals import *
+# if DRAW:
+#     import pygame
+#     from pygame.locals import *
 
 import numpy as np
 import numpy.random as nrand
@@ -10,6 +10,7 @@ import random
 import os
 
 #define
+TEST = True
 COVERED = -1
 FLAG = 9
 BOMB = 10
@@ -72,6 +73,8 @@ class Game(object):
 
         print caption
 
+        return np.matrix(self.display_board.flatten())
+
     def open_recursive(self, y, x):
         if self.display_board[y,x] == -1:
             if self.board[y,x] == 0:
@@ -94,9 +97,9 @@ class Game(object):
             else:
                 pass # we encountered bomb in the reccursion, don't open the tile0
 
-    def open(self, y, x):
-        temp = self.opened
-        reward = 0.1
+    def open(self, pos):
+        y, x = pos
+        reward = 1.0
         
         if self.display_board[y,x] != -1:
             reward = -1.0
@@ -121,10 +124,11 @@ class Game(object):
             self.open_recursive(y, x)
             
 
-        self.checkWin()
+        if self.checkWin():
+            reward = 100.0
         if TEST:
             print self.display_board
-        return reward
+        return np.matrix(self.display_board.flatten()), reward, self.result
 
     def mark(self, y, x):
         if self.display_board[y,x] == COVERED:
