@@ -10,7 +10,7 @@ import random
 import os
 
 #define
-TEST = False
+TEST = True
 COVERED = -1
 FLAG = 9
 BOMB = 10
@@ -71,8 +71,7 @@ class Game(object):
 
         caption = "W: " + str(self.wins) + " - L: " + str(self.losses)
 
-        if TEST:
-            print caption
+        print caption
 
         return np.matrix(self.display_board.flatten()) + 1
 
@@ -94,6 +93,7 @@ class Game(object):
 
             elif self.board[y,x] != BOMB:
                 self.display_board[y,x] = self.board[y,x]
+                self.opened += 1
 
             else:
                 pass # we encountered bomb in the reccursion, don't open the tile0
@@ -130,7 +130,9 @@ class Game(object):
 
         if self.checkWin():
             reward = 10.0
+            done = True
         if TEST:
+            print pos
             print self.display_board
         return np.matrix(self.display_board.flatten()) + 1, reward, done 
 

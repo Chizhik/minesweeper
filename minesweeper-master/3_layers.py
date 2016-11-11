@@ -61,7 +61,7 @@ def train_neural_network():
 	            j+=1
 	            #Choose an action by greedily (with e chance of random action) from the Q-network
 	            a,allQ = sess.run([predict,Qout],feed_dict={inputs1:s})
-	            print allQ
+	            #print allQ
 	            if np.random.rand(1) < e or i < 500:
 	                a[0] = np.random.randint(16)
 	            a_pos = (a[0]//4, a[0]%4)
@@ -74,6 +74,7 @@ def train_neural_network():
 	            maxQ1 = np.max(Q1)
 	            targetQ = allQ
 	            targetQ[0,a[0]] = r + y*maxQ1
+	            print targetQ
 	            #Train our network using target and predicted Q values
 	            _ = sess.run([updateModel],feed_dict={inputs1:s,nextQ:targetQ})
 	            rAll += r

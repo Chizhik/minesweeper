@@ -5,7 +5,7 @@ from game import *
 H = 16 # number of hidden layer neurons
 D = 16 # input dimensionality
 learning_rate = 0.1
-batch_size = 5
+batch_size = 50
 
 tf.reset_default_graph()
 
@@ -16,7 +16,7 @@ W1 = tf.get_variable("W1", shape = [D, H], initializer = tf.contrib.layers.xavie
 layer1 = tf.nn.relu(tf.matmul(observations, W1))
 W2 = tf.get_variable("W2", shape = [H, D], initializer = tf.contrib.layers.xavier_initializer())
 score = tf.matmul(layer1, W2)
-probability = tf.nn.sigmoid(score)
+probability = tf.nn.softmax(score)
 
 # From here we define the parts of the network needed for learning a good policy
 tvars = tf.trainable_variables()
@@ -43,11 +43,11 @@ e = 0.1
 running_reward = None
 reward_sum = 0
 episode_number = 1
-total_episodes = 100
+total_episodes = 1000
 init = tf.initialize_all_variables()
 
 # Launch the graph
-g = Game(4, 4, 4)
+g = Game(4, 4, 1)
 
 
 with tf.Session() as sess:
@@ -94,11 +94,10 @@ with tf.Session() as sess:
 			# size the rewards to be unit normal (helps control the gradient estimator variance)
 			normalized_epr = epr - np.mean(epr)
 			normalized_epr /= np.std(normalized_epr)
-			print normalized_epr
 
 			# Get the gradient for this episode, and save it in the gradBuffer
 			tGrad = sess.run(newGrads,feed_dict={observations: epx, input_y: epy, advantages: normalized_epr})
-			#print tGrad
+			print tGrad
 			for ix,grad in enumerate(tGrad):
 				gradBuffer[ix] += grad
 
