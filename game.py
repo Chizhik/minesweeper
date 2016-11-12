@@ -36,10 +36,10 @@ class Game(object):
     def reset(self):
         w = self.width
         h = self.height
-        self.display_board = np.zeros((w, h))
+        self.display_board = np.zeros((h, w))
         self.display_board += COVERED
 
-        self.board = np.zeros((w, h))
+        self.board = np.zeros((h, w))
 
         mines = 0
         while (mines != self.mines):
@@ -73,7 +73,7 @@ class Game(object):
 
         print caption
 
-        return np.matrix(self.display_board.flatten())
+        return np.matrix(self.display_board.flatten()) + 1
 
     def open_recursive(self, y, x):
         if self.display_board[y,x] == -1:
@@ -93,6 +93,7 @@ class Game(object):
 
             elif self.board[y,x] != BOMB:
                 self.display_board[y,x] = self.board[y,x]
+                self.opened += 1
 
             else:
                 pass # we encountered bomb in the reccursion, don't open the tile0
@@ -100,9 +101,11 @@ class Game(object):
     def open(self, pos):
         y, x = pos
         reward = 1.0
+        done = False
         
         if self.display_board[y,x] != -1:
             reward = -1.0
+            done = True
         
         elif self.board[y,x] == BOMB:
             self.display_board[y,x] = BOOM
@@ -119,16 +122,19 @@ class Game(object):
             self.finished = True
             self.losses += 1
             self.result = False
+            done = True
             
         else:
             self.open_recursive(y, x)
             
 
         if self.checkWin():
-            reward = 100.0
+            reward = 10.0
+            done = True
         if TEST:
+            print pos
             print self.display_board
-        return np.matrix(self.display_board.flatten()), reward, self.result
+        return np.matrix(self.display_board.flatten()) + 1, reward, done 
 
     def mark(self, y, x):
         if self.display_board[y,x] == COVERED:
