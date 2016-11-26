@@ -10,7 +10,7 @@ import random
 import os
 
 # define
-TEST = True
+TEST = False
 COVERED = -1
 FLAG = 9
 BOMB = 10

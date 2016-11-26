@@ -2,16 +2,17 @@ from game import *
 from ExperienceBuf import *
 from NN import *
 import numpy as np
+import random
 
 class Agent:
-    def __init__(self, load = True):
-        self.bsize = (8, 8)
-        self.game = Game(8, 8, 8)
+    def __init__(self, load = False):
+        self.bsize = (10, 10)
+        self.game = Game(10, 10, 10)
         self.nn = NN(self.bsize)
         if load:
             self.nn.load()
         self.buf = ExperienceBuf()
-        self.num_episodes = 100
+        self.num_episodes = 1000
         self.max_game_moves = 64
         self.observe = 10
         self.e = 0.0
@@ -23,9 +24,17 @@ class Agent:
         s = np.array([])
         for i in range(25):
             sample = np.zeros(11)
-            sample[int(inputState[i])] = 1.0
+            if (inputState[i] >= 0):
+                sample[int(inputState[i])] = 1.0
             temp.append(sample)
         return np.asmatrix(np.append(s, temp))
+
+    def is_uncovered(self, y, x):
+        return 0 <= self.game.display_board[y, x] <= 8
+
+    def is_in_range(self, y, x):
+        return 0 <= y < self.bsize[0] and 0 <= x < self.bsize[1]
+
 
     def learn(self):
         count = 0
@@ -37,35 +46,43 @@ class Agent:
             _, _, d = self.game.open((0, 0))
             while (not d):
                 self.place_flags()
-                pmines, true_vals = self.choose_possible_mines()
-
-                states = self.make_states(pmines)
-                states.shape = (len(pmines), 1, 25)
-
-                pboard = np.zeros(self.bsize)
-
-                for i in range(len(pmines)):
-                    tmp_state = states[i].flatten()
-                    tmp_state = self.toHot(tmp_state)
-                    self.buf.memorize(tmp_state, true_vals[i])
-                    h, w = pmines[i]
-                    pboard[h, w] = self.nn.predict(tmp_state)
-
+                #pmines, true_vals = self.choose_possible_mines()
+                pmines, true_vals = self.border_tiles_with_true_values()
                 #print pmines
-                #print states
-                #print pboard
+                #print true_vals
 
-                act = np.argmax(pboard.flatten())
-                a = (act // self.bsize[1], act % self.bsize[1])
+                if (len(pmines) == 0):
+                    uncovered_list = self.all_uncovered()
+                    #print uncovered_list
+                    a = random.sample(uncovered_list, 1)[0]
+                else:
+                    states = self.make_states(pmines)
+                    states.shape = (len(pmines), 1, 25)
 
-                #if np.random.rand(1) < self.e:
-                #    a = (np.random.randint(self.bsize[0]), np.random.randint(self.bsize[1]))
+                    pboard = np.zeros(self.bsize)
+
+                    for i in range(len(pmines)):
+                        tmp_state = states[i].flatten()
+                        tmp_state = self.toHot(tmp_state)
+                        self.buf.memorize(tmp_state, true_vals[i])
+                        h, w = pmines[i]
+                        pboard[h, w] = self.nn.predict(tmp_state)
+
+                    # print pmines
+                    # print states
+                    # print pboard
+
+                    act = np.argmax(pboard.flatten())
+                    a = (act // self.bsize[1], act % self.bsize[1])
 
 
-                #print a
+
+                # print a
                 _, _, d = self.game.open(a)
 
                 count += 1
+
+
 
             if count > self.observe:
                 x, y, bsize = self.buf.get_batch(self.mini_batch)
@@ -77,6 +94,28 @@ class Agent:
 
             if count % 50 == 0:
                 self.nn.save()
+
+    def play_solver(self):
+        for i in range(self.num_episodes):
+            self.game.reset()
+            if (self.game.wins + self.game.losses != i):
+                break;
+            _, _, d = self.game.open((0, 0))
+            while (not d):
+                self.place_flags()
+                pmines, true_vals = self.border_tiles_with_true_values()
+                #print pmines
+                #print true_vals
+                if (len(pmines) == 0):
+                    uncovered_list = self.all_uncovered()
+                    #print uncovered_list
+                    a = random.sample(uncovered_list, 1)[0]
+                else:
+                    a = pmines[np.argmax(true_vals)]
+                # print a
+                _, _, d = self.game.open(a)
+
+
 
     def make_target(self):
         target = np.zeros(self.bsize)
@@ -119,7 +158,7 @@ class Agent:
                             for j in range(-1, 2):
                                 w_new = w + j
                                 if (w_new >= 0 and w_new < 8):
-                                    if (s[h_new, w_new] > 0 and s[h_new, w_new] <= 8):
+                                    if (s[h_new, w_new] > 0 and s[h_new, w_new] <= 8) or s[h_new, w_new] == FLAG:
                                         is_border = True
                                 if is_border: break
                         if is_border: break
@@ -130,6 +169,56 @@ class Agent:
                         else:true_vals.append(1)
         return pmines, true_vals
 
+    def border_tiles_with_true_values(self):
+        border_tiles = []
+        true_vals = []
+        s = self.game.display_board
+        temp_board = np.ones((self.bsize[0], self.bsize[1])) * -1
+        for y in range(self.bsize[0]):
+            for x in range(self.bsize[1]):
+                if 0 < s[y, x] <= 8:
+                    n = self.closed_tiles_around(y, x)
+                    m = self.flags_around(y, x)
+                    for i_inc in range(-1, 2):
+                        for j_inc in range(-1, 2):
+                            y_new = y + i_inc
+                            x_new = x + j_inc
+                            if (i_inc != 0 or j_inc != 0) and self.is_in_range(y_new, x_new) and s[y_new, x_new] == COVERED:
+                                temp_board[y_new, x_new] = max(temp_board[y_new, x_new], float(s[y, x] - m)/n)
+        for y in range(self.bsize[0]):
+            for x in range(self.bsize[1]):
+                if temp_board[y, x] >= 0:
+                    border_tiles.append((y, x))
+                    true_vals.append(1 - temp_board[y, x])
+        return border_tiles, true_vals
+
+    def all_uncovered(self):
+        res = []
+        s = self.game.display_board
+        for y in range(self.bsize[0]):
+            for x in range(self.bsize[1]):
+                if s[y, x] == COVERED:
+                    res.append((y,x))
+        return res
+
+    def make_states_improved(self, border):
+        states = np.ones((len(border), 5, 5)) * -1
+        s = self.game.display_board + 1
+        for k in range(len(border)):
+            h, w = border[k]
+            for i in range(0, 5):
+                h_new = h + i - 2
+                for j in range(0, 5):
+                    w_new = w + j - 2
+                    if h_new >= 0 and w_new >= 0:
+                        try:
+                            states[k, i, j] = s[h_new, w_new]
+                        except:
+                            pass
+        return states
+
+
+
     def make_states(self, border):
         states = np.zeros((len(border), 5, 5))
         s = self.game.display_board + 1
@@ -139,12 +228,23 @@ class Agent:
                 h_new = h + i - 2
                 for j in range(0, 5):
                     w_new = w + j - 2
-                    if (h_new >= 0 and w_new >= 0):
+                    if h_new >= 0 and w_new >= 0:
                         try:
                             states[k, i, j] = s[h_new, w_new]
                         except:
                             pass
         return states
+
+    def flags_around(self, y, x):
+        n = 0
+        s = self.game.display_board
+        for i_inc in range(-1, 2):
+            for j_inc in range(-1, 2):
+                y_new = y + i_inc
+                x_new = x + j_inc
+                if (i_inc != 0 or j_inc != 0) and self.is_in_range(y_new, x_new) and s[y_new, x_new] == FLAG:
+                    n += 1
+        return n
 
     def closed_tiles_around(self, y, x):
         n = 0
@@ -153,7 +253,7 @@ class Agent:
             for j_inc in range(-1, 2):
                 y_new = y + i_inc
                 x_new = x + j_inc
-                if (i_inc != 0 or j_inc != 0) and (y_new >= 0 and x_new >= 0 and y_new < self.bsize[0] and x_new < self.bsize[1]) and (s[y_new, x_new] == COVERED or s[y_new, x_new] == FLAG):
+                if (i_inc != 0 or j_inc != 0) and self.is_in_range(y_new, x_new) and s[y_new, x_new] == COVERED:
                     n += 1
         return n
 
@@ -163,7 +263,7 @@ class Agent:
             for j_inc in range(-1, 2):
                 y_new = y + i_inc
                 x_new = x + j_inc
-                if (i_inc != 0 or j_inc != 0) and (y_new >= 0 and x_new >= 0 and y_new < self.bsize[0] and x_new < self.bsize[1]) and (s[y_new, x_new] == COVERED):
+                if (i_inc != 0 or j_inc != 0) and self.is_in_range(y_new, x_new) and s[y_new, x_new] == COVERED:
                     self.game.mark((y_new, x_new))
 
     def place_flags(self):
@@ -172,8 +272,8 @@ class Agent:
         s = self.game.display_board
         for y in range(h):
             for x in range(w):
-                if s[y,x] > 0 and s[y,x] <= 8:
-                    if self.closed_tiles_around(y, x) == s[y,x]:
+                if 0 < s[y,x] <= 8:
+                    if self.closed_tiles_around(y, x) + self.flags_around(y, x) == s[y,x]:
                         self.place_flags_around(y, x)
 
     def softmax(self, y):

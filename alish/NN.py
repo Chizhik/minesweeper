@@ -9,8 +9,8 @@ class NN:
     def __init__(self, bsize = (4, 4), gamma = 0.99):
         self.model = Sequential()
         self.model.add(Dense(275, activation='relu', init='uniform', input_dim=275))
-        self.model.add(Dense(275, activation='relu', init='uniform'))
-        #self.model.add(Dense(100, activation='linear', init='uniform'))
+        self.model.add(Dense(500, activation='relu', init='uniform'))
+        self.model.add(Dense(100, activation='linear', init='uniform'))
         self.model.add(Dense(1, activation='sigmoid', init='uniform'))
         opt = keras.optimizers.Adam(lr=0.001)
         self.model.compile(loss='mean_squared_error', optimizer=opt)
