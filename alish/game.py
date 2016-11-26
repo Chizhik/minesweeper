@@ -16,13 +16,18 @@ FLAG = 9
 BOMB = 10
 CORRECT = 11
 INCORRECT = 12
-BOOM = 10
+BOOM = 13
 
 
 # end define
 
+DRAW = True
+if DRAW:
+    import pygame
+    from pygame.locals import *
+
 class Game(object):
-    def __init__(self, width, height, mines, draw=False, tile_size=32):
+    def __init__(self, width, height, mines, draw=True, tile_size=32):
         self.width = width
         self.height = height
         self.mines = mines
@@ -32,7 +37,29 @@ class Game(object):
         self.tileSize = tile_size
         self.wh = self.height * self.width
 
+        # gamepy setup
+        if self.draw:
+            os.environ['SDL_VIDEO_CENTERED'] = '1'
+            pygame.init()
+            self.surface = pygame.Surface((width*tile_size, height*tile_size))
+            self.screen = pygame.display.set_mode((width*tile_size, height*tile_size))
+            self.clock = pygame.time.Clock()
+            self.pics = {}
+            size = (self.tileSize, self.tileSize)
+            self.pics[-1] = pygame.transform.scale(self.loadImg("covered"), size)
+            for i in range(14):
+                self.pics[i] = pygame.transform.scale(self.loadImg(str(i)), size)
+
         self.reset()
+
+    def loadImg(self, name):
+        return pygame.image.load(os.path.join("icons", name + ".png"))
+
+    def drawTile(self, pos, val):
+        if self.draw:
+            y, x = pos
+            p = (x * self.tileSize, y * self.tileSize)
+            self.surface.blit(self.pics[val], p)
 
     def reset(self):
         w = self.width
@@ -71,7 +98,14 @@ class Game(object):
         self.result = None
 
         caption = "W: " + str(self.wins) + " - L: " + str(self.losses)
-
+        if self.draw:
+            pygame.display.set_caption(caption)
+            for i in range(h):
+                for j in range(w):
+                    p = (i * self.tileSize, j * self.tileSize)
+                    self.surface.blit(self.pics[-1], p)
+            self.screen.blit(self.surface, (0,0))
+            pygame.display.flip()
 
         print caption
 
@@ -100,6 +134,9 @@ class Game(object):
             else:
                 pass  # we encountered bomb in the reccursion, don't open the tile0
 
+        if self.draw:
+            self.drawTile((y,x), self.display_board[y, x])
+
     def open(self, pos):
         y, x = pos
         reward = 1.0
@@ -120,6 +157,8 @@ class Game(object):
                     elif self.display_board[h, w] == FLAG and self.board[h][w] != BOMB:
                         self.display_board[h, w] = INCORRECT
 
+                    self.drawTile((h,w), self.display_board[h, w])
+
             reward = -1.0
             self.finished = True
             self.losses += 1
@@ -132,8 +171,15 @@ class Game(object):
         if self.checkWin():
             reward = 10.0
             done = True
+
         if TEST:
             print self.display_board
+
+        if self.draw:
+            self.drawTile(pos, self.display_board[y, x])
+            self.screen.blit(self.surface, (0, 0))
+            pygame.display.flip()
+
         return np.matrix(self.display_board) + 1, reward, done
 
     def mark(self, pos):
@@ -144,8 +190,14 @@ class Game(object):
                 self.correct_flags += 1
             else:
                 self.incorrect_flags += 1
+
         if TEST:
             print self.display_board
+
+        if self.draw:
+            self.drawTile((y,x), self.display_board[y, x])
+            self.screen.blit(self.surface, (0, 0))
+            pygame.display.flip()
 
     def unmark(self, pos):
         y, x = pos
@@ -155,8 +207,11 @@ class Game(object):
                 self.correct_flags -= 1
             else:
                 self.incorrect_flags -= 1
-        if TEST:
-            print self.display_board
+
+        if self.draw:
+            self.drawTile((y,x), self.display_board[y, x])
+            self.screen.blit(self.surface, (0, 0))
+            pygame.display.flip()
 
     def checkWin(self):
         if not self.finished:
