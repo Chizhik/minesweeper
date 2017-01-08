@@ -64,6 +64,8 @@ class Agent:
                     h, w = pmines[i]
                     pboard[h, w] = self.nn.predict(tmp_state)
 
+                self.game.fillProbabilities(pmines, pboard)
+
                 #print pmines
                 #print states
                 #print pboard
@@ -172,9 +174,9 @@ class Agent:
         #maxy = np.amax(y)
         #e = np.exp(y - maxy)
         return y / np.sum(y)
-    '''
+
+
     def play(self):
-        wt = False
         for i in range(self.num_episodes):
             self.game.reset()
             _, _, d = self.game.open((0, 0))
@@ -199,8 +201,6 @@ class Agent:
                             and self.game.display_board[y_temp, x_temp] == FLAG:
                         self.game.unmark(pmines[i])
 
-                temp = pygame.Surface((self.bsize[1], self.bsize[0]))
-                tran = pygame.Surface((self.game.tileSize - 1, self.game.tileSize - 1))
 
                 for i in range(len(pmines)):
                     tmp_state = states[i].flatten()
@@ -209,14 +209,7 @@ class Agent:
                     h, w = pmines[i]
                     pboard[h, w] = self.nn.predict(tmp_state)
 
-                    g = 1 - pboard[h, w]
-                    g *= 255
-                    tran.fill((160, 255-g, g))
-                    tran.set_alpha(120)
-                    self.game.screen.blit(tran, (w * self.game.tileSize, h * self.game.tileSize))
-
-                pygame.display.flip()
-
+                self.game.fillProbabilities(pmines, pboard)
 
                 # print pmines
                 # print states
@@ -230,46 +223,4 @@ class Agent:
 
                 # print a
 
-
-                for event in pygame.event.get():
-                    if event.type == KEYDOWN:
-                        if event.key == K_SPACE:
-                            wt = not wt
-                        elif event.key == K_ESCAPE:
-                            exit()
-
-                if wt:
-                    event = pygame.event.wait()
-                    while(1):
-                        if event.type == KEYDOWN:
-                            if event.key == K_SPACE:
-                                wt = not wt
-                                break
-                            elif event.key == K_RETURN:
-                                break
-                            elif event.key == K_ESCAPE:
-                                exit()
-                        event = pygame.event.wait()
-
                 _, _, d = self.game.open(a)
-
-                for event in pygame.event.get():
-                    if event.type == KEYDOWN:
-                        if event.key == K_SPACE:
-                            wt = not wt
-                        elif event.key == K_ESCAPE:
-                            exit()
-
-                if wt:
-                    event = pygame.event.wait()
-                    while(1):
-                        if event.type == KEYDOWN:
-                            if event.key == K_SPACE:
-                                wt = not wt
-                                break
-                            elif event.key == K_RETURN:
-                                break
-                            elif event.key == K_ESCAPE:
-                                exit()
-                        event = pygame.event.wait()
-    '''

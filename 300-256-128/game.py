@@ -1,9 +1,3 @@
-# DRAW = True
-
-# if DRAW:
-#     import pygame
-#     from pygame.locals import *
-
 import numpy as np
 import numpy.random as nrand
 import random
@@ -17,15 +11,8 @@ BOMB = 10
 CORRECT = 11
 INCORRECT = 12
 BOOM = 13
-
-
 # end define
-'''
-DRAW = True
-if DRAW:
-    import pygame
-    from pygame.locals import *
-'''
+
 
 class Game(object):
     def __init__(self, width, height, mines, draw=True, tile_size=32):
@@ -38,9 +25,10 @@ class Game(object):
         self.tileSize = tile_size
         self.wh = self.height * self.width
 
-        '''
         # gamepy setup
         if self.draw:
+            global pygame
+            import pygame
             os.environ['SDL_VIDEO_CENTERED'] = '1'
             pygame.init()
             self.surface = pygame.Surface((width*tile_size, height*tile_size))
@@ -51,7 +39,8 @@ class Game(object):
             self.pics[-1] = pygame.transform.scale(self.loadImg("covered"), size)
             for i in range(14):
                 self.pics[i] = pygame.transform.scale(self.loadImg(str(i)), size)
-        '''
+
+            self.wt = True
 
         self.reset()
 
@@ -79,21 +68,8 @@ class Game(object):
             if (x != 0 or y != 0) and (self.board[y, x] != BOMB):
                 self.board[y, x] = BOMB
                 mines += 1
-        '''
-        for i in range(h):
-            for j in range(w):
-                if (self.board[i, j] == BOMB):
-                    for i_inc in range(-1, 2):
-                        for j_inc in range(-1, 2):
-                            y_new = i + i_inc
-                            x_new = j + j_inc
-                            if y_new >= 0 and x_new >= 0:
-                                try:
-                                    if self.board[y_new, x_new] != BOMB:
-                                        self.board[y_new, x_new] += 1
-                                except:
-                                    pass
-        '''
+                pass
+
         for i in range(h):
             for j in range(w):
                 if self.board[i,j] == BOMB:
@@ -139,15 +115,18 @@ class Game(object):
             else:
                 pass  # we encountered bomb in the reccursion, don't open the tile0
 
-        '''
+
         if self.draw:
             self.drawTile((y,x), self.display_board[y, x])
-        '''
+
 
     def open(self, pos):
         y, x = pos
         reward = 1.0
         done = False
+
+        if self.draw:
+            self.pause()
 
         if self.display_board[y, x] != COVERED:
             reward = -1.0
@@ -181,7 +160,7 @@ class Game(object):
 
         if TEST:
             print self.display_board
-        '''
+
         if self.draw:
             self.drawTile(pos, self.display_board[y, x])
             self.screen.blit(self.surface, (0, 0))
@@ -192,7 +171,9 @@ class Game(object):
             self.screen.blit(tran, (x * self.tileSize, y * self.tileSize))
 
             pygame.display.flip()
-        '''
+
+            self.pause()
+
 
         return np.matrix(self.display_board) + 1, reward, done
 
@@ -207,12 +188,12 @@ class Game(object):
 
         if TEST:
             print self.display_board
-        '''
+
         if self.draw:
             self.drawTile((y,x), self.display_board[y, x])
             self.screen.blit(self.surface, (0, 0))
             pygame.display.flip()
-        '''
+
 
     def unmark(self, pos):
         y, x = pos
@@ -222,12 +203,11 @@ class Game(object):
                 self.correct_flags -= 1
             else:
                 self.incorrect_flags -= 1
-        '''
+
         if self.draw:
             self.drawTile((y,x), self.display_board[y, x])
             self.screen.blit(self.surface, (0, 0))
             pygame.display.flip()
-        '''s
 
     def checkWin(self):
         if not self.finished:
@@ -240,3 +220,37 @@ class Game(object):
 
     def isDone(self):
         return self.finished
+
+    def pause(self):
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    self.wt = not self.wt
+                elif event.key == pygame.K_ESCAPE:
+                    exit()
+
+        if self.wt:
+            event = pygame.event.wait()
+            while (1):
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_SPACE:
+                        self.wt = not self.wt
+                        break
+                    elif event.key == pygame.K_RETURN:
+                        break
+                    elif event.key == pygame.K_ESCAPE:
+                        exit()
+                event = pygame.event.wait()
+
+    def fillProbabilities(self, pmines, pboard):
+        if self.draw:
+            tran = pygame.Surface((self.tileSize - 1, self.tileSize - 1))
+            for i in range(len(pmines)):
+                h, w = pmines[i]
+                g = 1 - pboard[h, w]
+                g *= 255
+                tran.fill((160, 255 - g, g))
+                tran.set_alpha(120)
+                self.screen.blit(tran, (w * self.tileSize, h * self.tileSize))
+
+            pygame.display.flip()
